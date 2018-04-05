@@ -1,0 +1,91 @@
+---
+title: "St Croix Sed and Coral Analysis"
+author: "Amanda Bayless"
+date: "April 5, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(root.dir="~/Graduate Program/Applied Quantitative Methods/Assignments")
+```
+
+```{r}
+read.csv("All Sediment Data for Quant.csv")
+explanatory <- read.csv("Sediment Exp Matrix.csv")
+community <- read.csv("Sediment Comm Matrix Metals.csv")
+library(vegan)
+library(dummies)
+source("~/Graduate Program/Applied Quantitative Methods/scripts/utility_functions.R.txt") #script file for biplot
+```
+
+
+#Create community and explanatory matrices
+
+```{r}
+comm <- community[ , 3:ncol(community)] #takes the community data set but only uses 3rd through last column
+row.names(comm) <- comm[ , 1] # drop first column and make it a row name
+comm_sed <- comm[ , -1] 
+row.names(explanatory) <- explanatory[ , 1]
+exp_sed <- explanatory[ , -1] #make sample.ID the row names. Don't want rows as explanatory variable
+head(exp_sed)
+head(comm_sed)
+all.equal(rownames(comm_sed), rownames(exp_sed)) #Checking row names and column names match up in size
+```
+
+#Indirect/Unconstrained Ordination
+Trying to understand key elements w/o knowing much about data
+
+```{r}
+comm_pca = rda(comm_sed) 
+comm_pca
+names(comm_pca)
+str(comm_pca)
+comm_pca$CA$eig
+```
+
+```{r}
+sum(comm_pca$CA$eig)
+```
+```{r}
+round(comm_pca$CA$eig / comm_pca$tot.chi, 2)
+#can see PC1 captures almost all variance
+```
+```{r}
+plot(comm_pca,display=c('sp'))
+```
+
+```{r}
+cleanplot.pca(comm_pca)
+```
+
+#Constrained RDA with Site as predictor variable 
+```{r}
+rda_sed = rda(comm_sed ~ Site + Lat + Long, data = exp_sed)
+rda_sed
+plot(rda_sed)
+```
+
+```{r}
+plot(rda_sed, type='n', scaling=1)
+orditorp(rda_sed, display='sp', cex=1, scaling=1, col='blue')
+text(rda_sed, display='cn', col='red')
+```
+cca = relative change 
+square root transform elements to dampen signals from common elements
+
+```{r}
+plot(Cu ~ Site, data = community)
+plot(Cu ~ Group, data = community)
+plot(Ba ~ Site, data = community)
+plot(Zn ~ Site, data = community)
+plot(Zn ~ Group, data = community)
+plot(V ~ Site, data = community)
+plot(Cr ~ Site, data = community)
+```
+
+
+```{r}
+Cu_aov<- lm(Cu ~ Site, data = community)
+summary(Cu_aov)
+```
