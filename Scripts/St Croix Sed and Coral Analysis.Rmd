@@ -7,85 +7,408 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_chunk$set(root.dir="~/Graduate Program/Applied Quantitative Methods/Assignments")
 ```
 
 ```{r}
-read.csv("All Sediment Data for Quant.csv")
-explanatory <- read.csv("Sediment Exp Matrix.csv")
-community <- read.csv("Sediment Comm Matrix Metals.csv")
-library(vegan)
-library(dummies)
-source("~/Graduate Program/Applied Quantitative Methods/scripts/utility_functions.R.txt") #script file for biplot
+library(vegan) #Library required for PCA and RDA 
+source("./utility_functions.R") #script file for PCA cleanplot
+
+#Sediment Data
+explanatory <- read.csv("../Data/Sediment Exp Matrix.csv")
+community <- read.csv("../Data/Sediment Comm Matrix Metals.csv")
+
+#Coral Data
+coral_explanatory <- read.csv("../Data/Coral Explanatory Variables.csv")
+coral_community <- read.csv("../Data/Coral ICP Community Matrix.csv")
+
+Ca_ratio <- read.csv("../Data/Coral Community Matrix Ratios.csv") #This data is a ratio of all elements to Ca since the calcium looked variable in each site and was used for further hypothesis testing
 ```
 
-
-#Create community and explanatory matrices
+#Create community and explanatory matrices for sediment analysis
 
 ```{r}
-comm <- community[ , 3:ncol(community)] #takes the community data set but only uses 3rd through last column
-row.names(comm) <- comm[ , 1] # drop first column and make it a row name
-comm_sed <- comm[ , -1] 
+comm <- community[ , 3:ncol(community)] 
+#Takes the community data set but only uses 3rd through last column
+
+row.names(comm) <- comm[ , 1]
+comm_sed <- comm[ , -1]
+#Drop first column and make it a row name for community data
+
 row.names(explanatory) <- explanatory[ , 1]
-exp_sed <- explanatory[ , -1] #make sample.ID the row names. Don't want rows as explanatory variable
-head(exp_sed)
+exp_sed <- explanatory[ , -1] 
+#Drop first column and make sample.ID the row names for explanatory data (Don't want rows as explanatory variable!)
+
+head(exp_sed) 
 head(comm_sed)
-all.equal(rownames(comm_sed), rownames(exp_sed)) #Checking row names and column names match up in size
+#Checking successful move of first column to row for both community and explanatory matrix
+
+all.equal(rownames(comm_sed), rownames(exp_sed)) 
+#Checking row names and column names match up in size
 ```
 
-#Indirect/Unconstrained Ordination
-Trying to understand key elements w/o knowing much about data
+#Indirect/Unconstrained Ordination on Sediment
+Trying to understand key elements w/o knowing everything about the sediment data
 
 ```{r}
-comm_pca = rda(comm_sed) 
+comm_pca <- rda(comm_sed) 
 comm_pca
-names(comm_pca)
-str(comm_pca)
-comm_pca$CA$eig
+#Running PCA on community matrix; shows eigenvalues for each axis (Large eigenvalues correspond to large variances) 
 ```
 
 ```{r}
-sum(comm_pca$CA$eig)
+sum(comm_pca$CA$eig) #sum of eigenvalues is equal to total variance
 ```
+
 ```{r}
 round(comm_pca$CA$eig / comm_pca$tot.chi, 2)
-#can see PC1 captures almost all variance
+#Ratio of eigenvalue to total variance shows amount of variance explained by each PCA axis
+#Can see PC1 captures almost all variance
 ```
+
 ```{r}
 plot(comm_pca,display=c('sp'))
+#Elements seem to be oriented according to the 1 axis that explains almost all variance 
 ```
 
 ```{r}
 cleanplot.pca(comm_pca)
+#You can see the clean plot a little easier by expanding this window
+#The visible elements that stand out are the elements that should be focused on in sediment for examining significant differences between sites and between regions (BUIS and SARI)
 ```
 
 #Constrained RDA with Site as predictor variable 
 ```{r}
 rda_sed = rda(comm_sed ~ Site + Lat + Long, data = exp_sed)
+# vegan requires that we write out each term if we are not going to convert the factor to a dummy matrix
+# Will add grain size analysis as another predictor variable when data is available
+
 rda_sed
+# says "some constraints were aliased because they were collinear (redundant)" which means the lat and long were removed because site name is the same thing 
+
 plot(rda_sed)
+#This RDA is hard to read with each sample labeled on the plot
 ```
 
 ```{r}
 plot(rda_sed, type='n', scaling=1)
 orditorp(rda_sed, display='sp', cex=1, scaling=1, col='blue')
 text(rda_sed, display='cn', col='red')
+# This RDA plot is much cleaner, but still hard to view -> expanding window helps
+# This plot does show that all of these elements are correlated with SARI sites and BUIS sites are not even visible. This indicates that all elements may be in higher concentrations at SARI sites (besides the one element hiding in the middle of the plot)
 ```
-cca = relative change 
-square root transform elements to dampen signals from common elements
 
+#Hypothesis Testing
+The elements chosen for hypothesis testing are based on the results from the RDA as well as other elements that are of interest based on their role in sediment
+
+*Numbers shown for all elements are in parts per billion (ppb)
+
+COPPER - toxic to reproduction 
 ```{r}
 plot(Cu ~ Site, data = community)
+# Examining box plots to see element variation between sites
+
 plot(Cu ~ Group, data = community)
-plot(Ba ~ Site, data = community)
-plot(Zn ~ Site, data = community)
-plot(Zn ~ Group, data = community)
-plot(V ~ Site, data = community)
-plot(Cr ~ Site, data = community)
+# Also can examine how elements vary by region (SARI vs BUIS)
 ```
+
+Copper looks like it varies a lot by site and region!
+
+BARIUM - indication of freshwater (but mostly used in water column and in coral skeleton, not so much in sed)
+```{r}
+plot(Ba ~ Site, data = community)
+
+plot(Ba ~ Group, data = community)
+```
+
+
+ZINC - Toxic metal
+```{r}
+plot(Zn ~ Site, data = community)
+
+plot(Zn ~ Group, data = community)
+```
+
+VANADIUM - Can be toxic; mainly assoicated with oil refineries and mining
+```{r}
+plot(V ~ Site, data = community)
+
+plot(V ~ Group, data = community)
+```
+
+CHROMIUM - from industrial pollution (mainly toxic in hexavalent form)
+```{r}
+plot(Cr ~ Site, data = community)
+
+plot(Cr ~ Group, data = community)
+```
+
+Large differences between sites and regions for Cu, Ba, V, Zn and Cr
+
+#Test if these differences are significant with ANOVA
+
+```{r}
+Cu_aov <- lm(Cu ~ Site, data = community)
+summary(Cu_aov)
+```
+The anova reveals that Cu does significantly vary depending on site -> Can re-level intercept for specific significant differences between sites
+
+```{r}
+Cu_aov2 <- lm(Cu ~ Group, data = community)
+summary(Cu_aov2)
+```
+By separating SARI and BUIS in 'Group', we can see that Cu concentrations inside Salt River Bay (SARI) are significantly different from Cu Concentrations at Buck Island sites (BUIS)
+
+```{r}
+Zn_aov <- lm(Zn ~ Site, data = community)
+summary(Zn_aov)
+```
+```{r}
+Zn_aov2 <- lm(Zn ~ Group, data = community)
+summary(Zn_aov2)
+```
+Zinc is also significantly different between BUIS and SARI and significantly different among sites
+
+#Coral Analysis
+All code below examines elements in coral skeleton
+
+#Create community and explanatory matrices for coral
+ 
+```{r}
+coral_comm_short <- coral_community[ , 3:ncol(coral_community)] 
+#takes the community data set but only uses 3rd through last column
+
+row.names(coral_comm_short) <- coral_comm_short[ , 1] 
+cor_comm <- coral_comm_short[ , -1] 
+# drop first column and make it a row name
+
+row.names(coral_explanatory) <- coral_explanatory[ , 1]
+cor_exp <- coral_explanatory[ , -1] 
+# make sample.ID the row names for explanatory matrix
+
+head(cor_exp)
+head(cor_comm)
+
+all.equal(rownames(cor_exp), rownames(cor_comm)) 
+#Checking row names and column names match up in size
+```
+
+#Indirect/Unconstrained Ordination on Coral
+Trying to understand key elements to examine in coral skeleton
+
+```{r}
+coral_pca <- rda(cor_comm) 
+coral_pca
+#Running PCA on coral community matrix; shows eigenvalues for each axis (Large eigenvalues correspond to large variances) 
+```
+
+```{r}
+round(coral_pca$CA$eig / coral_pca$tot.chi, 2)
+#can see PC1 captures all variance
+```
+May need to transform data or remove elements that dominate in coral skeleton (Ca, Sr, Mg) -> Just got data together yesterday, so still working on this issue and both plots below shows why this is necessary!
+
+```{r}
+plot(coral_pca,display=c('sp'))
+```
+
+
+```{r, warning = FALSE}
+cleanplot.pca(coral_pca)
+```
+
+#Constrained RDA
+
+This RDA examines site, colony length (cm) and percent mortality of the colony as explanatory variables for elements in each biopsy
+
+Colony length and percent mortality were recorded right before taking biopsies of coral from the wild
+
+```{r}
+cor_exp1 <- na.omit(cor_exp) 
+#omitting values with NA 
+
+cor_comm1 <- cor_comm[1:54, ] 
+#Have to remove site BUIS 6 from community matrix because some information for the explanatory variables is not available and matrices must be equal in size in order to run RDA
+```
+
+```{r}
+coral_rda = rda(cor_comm1 ~ Colony.length + Perc.Mortality, data = cor_exp1) 
+coral_rda
+```
+
+```{r}
+plot(coral_rda, na.rm=TRUE)
+```
+We can see which sites are correlated with colony length and percent mortality but elements aren't visible
+
+The RDA is hard to interpret due to the number of sites, so hypothesis testing will be based on elements of concern in coral that are indicators of water quality parameters and potentially toxic metals that showed up in the coral in the mass spectrometry analysis 
+
+#Hypothesis Testing with ANOVA 
+
+First, graphing elements to see differences between sites (I know, too many graphs and elements to examine)
+
+```{r}
+plot(P ~ Site, data = coral_community)  
+plot(P ~ Group, data = coral_community)
+
+plot(Ba ~ Site, data = coral_community) 
+plot(Ba ~ Group, data = coral_community) 
+
+
+plot(Zn ~ Site, data = coral_community)
+plot(Zn ~ Group, data = coral_community) 
+
+
+plot(Pb ~ Site, data = coral_community) 
+plot(Pb ~ Group, data = coral_community)
+
+
+plot(B ~ Site, data = coral_community)
+plot(B ~ Group, data = coral_community)
+
+#Phosphorus, barium, zinc, lead, and boron all appear to vary by site and region
+```
+
+```{r}
+#The rest of the plots below did not show much difference between sites or regions
+plot(Cd ~ Site, data = coral_community)
+plot(Cd ~ Group, data = coral_community)
+plot(Fe ~ Site, data = coral_community)
+plot(Fe ~ Group, data = coral_community)
+plot(Al ~ Site, data = coral_community)
+plot(Al ~ Group, data = coral_community)
+plot(Li ~ Site, data = coral_community)
+plot(Li ~ Group, data = coral_community)
+plot(Cu ~ Site, data = coral_community)
+plot(Cu ~ Group, data = coral_community)
+plot(Co ~ Site, data = coral_community)
+plot(Ni ~ Site, data = coral_community)
+```
+
+
+Below are plots of the same elements in coral skeletons ratioed to calcium. The plots above of elements that aren't ratioed to Ca were kept for comparison to show committee. 
+
+```{r}
+plot(P ~ Site, data = Ca_ratio)  
+plot(P ~ Group, data = Ca_ratio) #Test significance
+plot(Ba ~ Site, data = Ca_ratio) 
+plot(Ba ~ Group, data = Ca_ratio) #Test significance
+plot(Zn ~ Site, data = Ca_ratio)
+plot(Zn ~ Group, data = Ca_ratio) #Test significance
+plot(Pb ~ Site, data = Ca_ratio) 
+plot(Pb ~ Group, data = Ca_ratio) #Test significance
+plot(B ~ Site, data = Ca_ratio)
+plot(B ~ Group, data = Ca_ratio) #Test significance
+
+plot(Cd ~ Site, data = Ca_ratio)
+plot(Fe ~ Site, data = Ca_ratio)
+plot(Al ~ Site, data = Ca_ratio)
+plot(Li ~ Site, data = Ca_ratio)
+plot(Co ~ Site, data = Ca_ratio)
+plot(Cu ~ Site, data = Ca_ratio)
+plot(Ca ~ Site, data = Ca_ratio)
+```
+
+COPPER
+```{r}
+Cu_coral <- lm(Cu ~ Site, data = Ca_ratio)
+summary(Cu_coral)
+#Cu is significantly different from intercept (BUIS 1) at SARI 2
+
+Cu_coral2 <- lm(Cu ~ Group, data = Ca_ratio)
+summary(Cu_coral2)
+#Cu not significantly different between SARI and BUIS as a whole
+```
+Cr and V are also not significantly different in coral at SARI vs BUIS
+
+ZINC
+```{r}
+Zn_coral <- lm(Zn ~ Site, data = Ca_ratio)
+summary(Zn_coral)
+#Sites significantly different 
+
+Zn_coral2 <- lm(Zn ~ Group, data = Ca_ratio)
+summary(Zn_coral2)
+#Zn is significantly greater at SARI  
+```
+
+Phosphorus - Indicates nutrient loading 
+```{r}
+P_coral <- lm(P ~ Site, data = Ca_ratio)
+summary(P_coral)
+
+P_coral2 <- lm(P ~ Group, data = Ca_ratio)
+summary(P_coral2)
+#P significantly greater at BUIS
+```
+
+Boron - pH proxy
+```{r}
+B_coral <- lm(B ~ Site, data = Ca_ratio)
+summary(B_coral)
+
+B_coral2 <- lm(B ~ Group, data = Ca_ratio)
+summary(B_coral2)
+#B significantly greater at BUIS 
+```
+
+BARIUM - Salinity/Freshwater proxy 
+```{r}
+Ba_coral <- lm(Ba ~ Site, data = Ca_ratio)
+summary(Ba_coral)
+
+Ba_coral2 <- lm(Ba ~ Group, data = Ca_ratio)
+summary(Ba_coral2)
+#Ba significantly greater at BUIS
+```
+
+LEAD - Toxic metal 
+```{r}
+Pb_coral <- lm(Pb ~ Site, data = Ca_ratio)
+summary(Pb_coral)
+
+Pb_coral2 <- lm(Pb ~ Group, data = Ca_ratio)
+summary(Pb_coral2)
+#Pb significantly greater at SARI
+```
+
+ALUMINUM AND IRON - Both element indicate turbidity if taken up in coral skeleton because they are the most abundant elements in muddy sediment 
+```{r}
+Al_coral <- lm(Al ~ Site, data = Ca_ratio)
+summary(Al_coral)
+
+Fe_coral <- lm(Fe ~ Site, data = Ca_ratio)
+summary(Fe_coral)
+
+#Fe very close to being significantly different between BUIS and SARI -> need to look at individual site differences more closely
+
+#Al not significantly different between SARI and BUIS but some significant differences at certain sites
+```
+
+Examining percent mortality (explanatory variable) as a function of site
+
+```{r}
+plot(Perc.Mortality ~ Site, data = coral_explanatory) 
+#Mortality appears to vary by site
+
+Mort_aov <- lm(Perc.Mortality ~ Site, data = coral_explanatory)
+summary(Mort_aov)
+#Mortality is significantly different between certain sites 
+```
+
+BUIS 4, SARI 1 and SARI 2 all have significantly greater mortality than BUIS 1
+
+```{r}
+plot(Colony.length ~ Site, data = coral_explanatory)
+# Colony length appears to vary slightly
+
+Length_aov <- lm(Colony.length ~ Site, data = coral_explanatory)
+summary(Length_aov)
+```
+
+SARI 1 is significantly smaller in length than BUIS 1
 
 
 ```{r}
-Cu_aov<- lm(Cu ~ Site, data = community)
-summary(Cu_aov)
+pairs(cor_comm, lower.panel = panel.smooth, upper.panel = panel.cor)
 ```
+
