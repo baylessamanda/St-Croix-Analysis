@@ -24,4 +24,10 @@ Examining these elements in the sediment assists in source location and examinin
 determining exposure.
 
 # Statistical Analysis
+PCA and RDA were run on both the sediment and coral skeleton data sets. The results from those analyses further directed the hypothesis tesing which include ANOVA tests of individual elements. 
+
+# Instructions for Running Code and Examining Data
+The code is in a single markdown file under the scripts folder. 
+The data folder contains all csv files used for the analysis. 
+The figures folder currently does not contain any figures, but my final figures will go there. 
 
