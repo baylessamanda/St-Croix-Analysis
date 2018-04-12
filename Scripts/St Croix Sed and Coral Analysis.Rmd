@@ -235,8 +235,8 @@ coral_rda = rda(cor_comm1 ~ Colony.length + Perc.Mortality, data = cor_exp1)
 coral_rda
 ```
 
-```{r}
-plot(coral_rda, na.rm=TRUE)
+```{r, warning = FALSE}
+plot(coral_rda)
 ```
 We can see which sites are correlated with colony length and percent mortality but elements aren't visible
 
@@ -406,9 +406,4 @@ summary(Length_aov)
 ```
 
 SARI 1 is significantly smaller in length than BUIS 1
-
-
-```{r}
-pairs(cor_comm, lower.panel = panel.smooth, upper.panel = panel.cor)
-```
 
