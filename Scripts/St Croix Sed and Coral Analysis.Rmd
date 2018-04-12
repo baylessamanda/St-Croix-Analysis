@@ -405,5 +405,5 @@ Length_aov <- lm(Colony.length ~ Site, data = coral_explanatory)
 summary(Length_aov)
 ```
 
-SARI 1 is significantly smaller in length than BUIS 1
+SARI 1 is significantly smaller in length than BUIS 1.
 
