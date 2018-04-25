@@ -2,7 +2,9 @@
 title: "St Croix Sed and Coral Analysis"
 author: "Amanda Bayless"
 date: "April 5, 2018"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -10,16 +12,18 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-library(vegan) #Library required for PCA and RDA 
+library(vegan) #Library required for PCA and RDA
+library(dunn.test)
 source("./utility_functions.R") #script file for PCA cleanplot
 
 #Sediment Data
 explanatory <- read.csv("../Data/Sediment Exp Matrix.csv")
-community <- read.csv("../Data/Sediment Comm Matrix Metals.csv")
+community <- read.csv("../Data/Sediment Comm Matrix.csv")
 
 #Coral Data
 coral_explanatory <- read.csv("../Data/Coral Explanatory Variables.csv")
 coral_community <- read.csv("../Data/Coral ICP Community Matrix.csv")
+coral_community
 
 Ca_ratio <- read.csv("../Data/Coral Community Matrix Ratios.csv") #This data is a ratio of all elements to Ca since the calcium looked variable in each site and was used for further hypothesis testing
 ```
@@ -51,8 +55,8 @@ Trying to understand key elements w/o knowing everything about the sediment data
 
 ```{r}
 comm_pca <- rda(comm_sed) 
-comm_pca
-#Running PCA on community matrix; shows eigenvalues for each axis (Large eigenvalues correspond to large variances) 
+summary(comm_pca)
+#Running PCA on community matrix; shows eigenvalues for each axis (Large eigenvalues correspond to large variances)
 ```
 
 ```{r}
@@ -67,7 +71,7 @@ round(comm_pca$CA$eig / comm_pca$tot.chi, 2)
 
 ```{r}
 plot(comm_pca,display=c('sp'))
-#Elements seem to be oriented according to the 1 axis that explains almost all variance 
+#Elements seem to be oriented according to the 1 axis that explains almost all variance but still not revealing information about elements to eliminate. Iron and aluminum have greater abundance in nature than most other elements so it is obviously further along PC1 axis. 
 ```
 
 ```{r}
@@ -104,10 +108,12 @@ The elements chosen for hypothesis testing are based on the results from the RDA
 
 COPPER - toxic to reproduction 
 ```{r}
-plot(Cu ~ Site, data = community)
+plot(Cu ~ Site, ylab = "Cu (ppb)", data = community)
 # Examining box plots to see element variation between sites
 
-plot(Cu ~ Group, data = community)
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Cu ~ Group, data = community, ylab = "Cu (ppb)", xlab = "Region")
 # Also can examine how elements vary by region (SARI vs BUIS)
 ```
 
@@ -115,58 +121,93 @@ Copper looks like it varies a lot by site and region!
 
 BARIUM - indication of freshwater (but mostly used in water column and in coral skeleton, not so much in sed)
 ```{r}
-plot(Ba ~ Site, data = community)
+plot(Ba ~ Site, data = community, ylab = "Ba (ppb)")
 
-plot(Ba ~ Group, data = community)
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Ba ~ Group, data = community, ylab = "Ba (ppb)", xlab = "Region")
 ```
 
 
 ZINC - Toxic metal
 ```{r}
-plot(Zn ~ Site, data = community)
+plot(Zn ~ Site, data = community, ylab = "Zn (ppb)")
 
-plot(Zn ~ Group, data = community)
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Zn ~ Group, data = community, ylab = "Zn (ppb)", xlab = "Region")
 ```
 
 VANADIUM - Can be toxic; mainly assoicated with oil refineries and mining
 ```{r}
-plot(V ~ Site, data = community)
+plot(V ~ Site, data = community, ylab = "V (ppb)")
 
-plot(V ~ Group, data = community)
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(V ~ Group, data = community, ylab = "V (ppb)", xlab = "Region")
 ```
 
 CHROMIUM - from industrial pollution (mainly toxic in hexavalent form)
 ```{r}
-plot(Cr ~ Site, data = community)
+plot(Cr ~ Site, data = community, ylab = "Cr (ppb)")
 
-plot(Cr ~ Group, data = community)
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Cr ~ Group, data = community, ylab = "Cr (ppb)", xlab = "Region")
 ```
 
 Large differences between sites and regions for Cu, Ba, V, Zn and Cr
 
 #Test if these differences are significant with ANOVA
 
+COPPER 
 ```{r}
-Cu_aov <- lm(Cu ~ Site, data = community)
-summary(Cu_aov)
-```
-The anova reveals that Cu does significantly vary depending on site -> Can re-level intercept for specific significant differences between sites
+Cu_aov1 <- lm(Cu ~ Site, data = community)
+summary(Cu_aov1)
 
-```{r}
-Cu_aov2 <- lm(Cu ~ Group, data = community)
-summary(Cu_aov2)
+plot(Cu_aov1) # Data is not normally distributed and does not meet the assumptions of ANOVA. Cu is log transformed but data still does not look normally distributed, so we must perform a non-parametric test
+shapiro.test(community$Cu) # p value way less than 0.05, so data is non-normal
+
+dunn.test(community$Cu, community$Site, method = "bonferroni")
+
+kruskal.test(Cu ~ Group, data = community)
 ```
+SARI 8, 9, 11 are significantly different than BUIS 1 using Dunn's Test
+
 By separating SARI and BUIS in 'Group', we can see that Cu concentrations inside Salt River Bay (SARI) are significantly different from Cu Concentrations at Buck Island sites (BUIS)
 
+ZINC
 ```{r}
 Zn_aov <- lm(Zn ~ Site, data = community)
 summary(Zn_aov)
+
+plot(Zn_aov) #Data not normally distributed. Can't log transform Zn and sqrt doesn't help
+
+shapiro.test(community$Zn)
+
+dunn.test(community$Zn, community$Site, method = "bonferroni")
+
+kruskal.test(Zn ~ Group, data = community)
 ```
-```{r}
-Zn_aov2 <- lm(Zn ~ Group, data = community)
-summary(Zn_aov2)
-```
+SARI 8 and 9 sig diff than BUIS 1; SARI 9 sig diff than BUIS 4
+
 Zinc is also significantly different between BUIS and SARI and significantly different among sites
+
+BARIUM
+```{r}
+Ba_aov <- lm(Ba ~ Site, data = community)
+summary(Ba_aov)
+
+plot(Ba_aov) #Data not normally distributed
+
+shapiro.test(community$Ba)
+
+dunn.test(community$Ba, community$Site, method = "bonferroni")
+
+kruskal.test(Ba ~ Group, data = community)
+```
+
+SARI 8, 9 significantly different from BUIS 1 and BUIS 4
 
 #Coral Analysis
 All code below examines elements in coral skeleton
@@ -177,12 +218,14 @@ All code below examines elements in coral skeleton
 coral_comm_short <- coral_community[ , 3:ncol(coral_community)] 
 #takes the community data set but only uses 3rd through last column
 
+coral_exp_short <- coral_explanatory[ , 3:ncol(coral_explanatory)]
+
 row.names(coral_comm_short) <- coral_comm_short[ , 1] 
 cor_comm <- coral_comm_short[ , -1] 
 # drop first column and make it a row name
 
-row.names(coral_explanatory) <- coral_explanatory[ , 1]
-cor_exp <- coral_explanatory[ , -1] 
+row.names(coral_exp_short) <- coral_exp_short[ , 1]
+cor_exp <- coral_exp_short[ , -1] 
 # make sample.ID the row names for explanatory matrix
 
 head(cor_exp)
@@ -196,19 +239,18 @@ all.equal(rownames(cor_exp), rownames(cor_comm))
 Trying to understand key elements to examine in coral skeleton
 
 ```{r}
-coral_pca <- rda(cor_comm) 
+coral_pca <- rda(cor_comm[ ,c(-3,-6,-13)]) #removed Calcium, Magnesium and Strontium in order to see other elements
 coral_pca
 #Running PCA on coral community matrix; shows eigenvalues for each axis (Large eigenvalues correspond to large variances) 
 ```
 
 ```{r}
 round(coral_pca$CA$eig / coral_pca$tot.chi, 2)
-#can see PC1 captures all variance
 ```
 May need to transform data or remove elements that dominate in coral skeleton (Ca, Sr, Mg) -> Just got data together yesterday, so still working on this issue and both plots below shows why this is necessary!
 
 ```{r}
-plot(coral_pca,display=c('sp'))
+plot(coral_pca,display=c('sp')) #Not a whole lot to take away from the PCA plot. 
 ```
 
 
@@ -218,69 +260,117 @@ cleanplot.pca(coral_pca)
 
 #Constrained RDA
 
-This RDA examines site, colony length (cm) and percent mortality of the colony as explanatory variables for elements in each biopsy
+This RDA examines elements as explanatory variables for colony length (cm) and percent mortality of the in each biopsy
 
 Colony length and percent mortality were recorded right before taking biopsies of coral from the wild
 
 ```{r}
 cor_exp1 <- na.omit(cor_exp) 
 #omitting values with NA 
-
-cor_comm1 <- cor_comm[1:54, ] 
+cor_exp1
+cor_comm1 <- cor_comm[-c(55:64), ] 
+cor_comm1
 #Have to remove site BUIS 6 from community matrix because some information for the explanatory variables is not available and matrices must be equal in size in order to run RDA
 ```
 
 ```{r}
-coral_rda = rda(cor_comm1 ~ Colony.length + Perc.Mortality, data = cor_exp1) 
+coral_rda = rda(cor_exp1$Perc.Mortality ~ Cu + Pb + Zn + Fe + Al + P + Ni + Co + Ba + Cd, data = cor_comm1) 
 coral_rda
 ```
 
 ```{r, warning = FALSE}
+
 plot(coral_rda)
 ```
-We can see which sites are correlated with colony length and percent mortality but elements aren't visible
+Since unconstrained  variance is much greater then constrained variance, should use caution when interpreting results
 
-The RDA is hard to interpret due to the number of sites, so hypothesis testing will be based on elements of concern in coral that are indicators of water quality parameters and potentially toxic metals that showed up in the coral in the mass spectrometry analysis 
+We can see which colonies are correlated with which elements based on mortality. Row 1, 17 and 54 are correlated with higher Cu values (I can't get the names to show up) and these rows (colonies) had the greatest observed mortality in the data set. 
+
+The same analysis will be run for the reproductive data and the element concentrations in the coral. 
+
+Hypothesis testing still necessary...
 
 #Hypothesis Testing with ANOVA 
 
-First, graphing elements to see differences between sites (I know, too many graphs and elements to examine)
+First, graphing elements to see differences between sites
 
 ```{r}
-plot(P ~ Site, data = coral_community)  
-plot(P ~ Group, data = coral_community)
+plot(P ~ Site, xlab = "Site", ylab = "Phosphorus (ppb)", data = coral_community)
 
-plot(Ba ~ Site, data = coral_community) 
-plot(Ba ~ Group, data = coral_community) 
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(P ~ Group, xlab = "Population", ylab = "Phosphorus (ppb)", data = coral_community)
 
+plot(Ba ~ Site, xlab = "Site", ylab = "Barium (ppb)", data = coral_community)
 
-plot(Zn ~ Site, data = coral_community)
-plot(Zn ~ Group, data = coral_community) 
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Ba ~ Group, xlab = "Population", ylab = "Barium (ppb)", data = coral_community) 
+
+plot(Zn ~ Site, xlab = "Site", ylab = "Zinc (ppb)", data = coral_community)
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Zn ~ Group, xlab = "Population", ylab = "Zinc (ppb)", data = coral_community) 
 
 
 plot(Pb ~ Site, data = coral_community) 
-plot(Pb ~ Group, data = coral_community)
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Pb ~ Group, xlab = "Population", ylab = "Lead (ppb)",data = coral_community)
 
 
 plot(B ~ Site, data = coral_community)
-plot(B ~ Group, data = coral_community)
 
-#Phosphorus, barium, zinc, lead, and boron all appear to vary by site and region
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(B ~ Group, xlab = "Population", ylab = "Boron (ppb)", data = coral_community)
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Fe ~ Site, xlab = "Site", ylab = "Iron (ppb)", data = coral_community)
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Fe ~ Group, xlab = "Population", ylab = "Iron (ppb)", data = coral_community)
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Cu ~ Site, xlab = "Site", ylab = "Copper (ppb)", data = coral_community)
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Cu ~ Group, xlab = "Population", ylab = "Copper (ppb)", data = coral_community)
+
+#Phosphorus, iron, barium, zinc, lead, and boron all appear to vary by site and region
 ```
 
 ```{r}
 #The rest of the plots below did not show much difference between sites or regions
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
 plot(Cd ~ Site, data = coral_community)
+
 plot(Cd ~ Group, data = coral_community)
-plot(Fe ~ Site, data = coral_community)
-plot(Fe ~ Group, data = coral_community)
+
 plot(Al ~ Site, data = coral_community)
+
 plot(Al ~ Group, data = coral_community)
+
 plot(Li ~ Site, data = coral_community)
+
 plot(Li ~ Group, data = coral_community)
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
 plot(Cu ~ Site, data = coral_community)
+
 plot(Cu ~ Group, data = coral_community)
+
 plot(Co ~ Site, data = coral_community)
+
 plot(Ni ~ Site, data = coral_community)
 ```
 
@@ -288,56 +378,87 @@ plot(Ni ~ Site, data = coral_community)
 Below are plots of the same elements in coral skeletons ratioed to calcium. The plots above of elements that aren't ratioed to Ca were kept for comparison to show committee. 
 
 ```{r}
-plot(P ~ Site, data = Ca_ratio)  
+plot(P ~ Site, xlab = "Population" , ylab = "P (ppb)", data = Ca_ratio)  
 plot(P ~ Group, data = Ca_ratio) #Test significance
+
 plot(Ba ~ Site, data = Ca_ratio) 
 plot(Ba ~ Group, data = Ca_ratio) #Test significance
+
 plot(Zn ~ Site, data = Ca_ratio)
 plot(Zn ~ Group, data = Ca_ratio) #Test significance
+
 plot(Pb ~ Site, data = Ca_ratio) 
 plot(Pb ~ Group, data = Ca_ratio) #Test significance
+
 plot(B ~ Site, data = Ca_ratio)
 plot(B ~ Group, data = Ca_ratio) #Test significance
 
 plot(Cd ~ Site, data = Ca_ratio)
+
 plot(Fe ~ Site, data = Ca_ratio)
+
 plot(Al ~ Site, data = Ca_ratio)
+
 plot(Li ~ Site, data = Ca_ratio)
+
 plot(Co ~ Site, data = Ca_ratio)
+
 plot(Cu ~ Site, data = Ca_ratio)
+
 plot(Ca ~ Site, data = Ca_ratio)
+
+plot(Mg ~ Group, data = Ca_ratio)
 ```
 
 COPPER
 ```{r}
 Cu_coral <- lm(Cu ~ Site, data = Ca_ratio)
 summary(Cu_coral)
-#Cu is significantly different from intercept (BUIS 1) at SARI 2
 
-Cu_coral2 <- lm(Cu ~ Group, data = Ca_ratio)
-summary(Cu_coral2)
-#Cu not significantly different between SARI and BUIS as a whole
+plot(Cu_coral)
+
+shapiro.test(Ca_ratio$Cu) # not normally distributed
+
+dunn.test(Ca_ratio$Cu, Ca_ratio$Site, method = "bonferroni")
+#Cu in coral not significantly diff btwn sites
+
+kruskal.test(Cu ~ Group, data = Ca_ratio)
+#Cu in coral not significantly different between SARI and BUIS as a whole
 ```
 Cr and V are also not significantly different in coral at SARI vs BUIS
 
 ZINC
 ```{r}
-Zn_coral <- lm(Zn ~ Site, data = Ca_ratio)
+Zn_coral <- lm(sqrt(Zn) ~ Site, data = Ca_ratio)
 summary(Zn_coral)
-#Sites significantly different 
 
-Zn_coral2 <- lm(Zn ~ Group, data = Ca_ratio)
-summary(Zn_coral2)
+plot(Zn_coral)
+
+shapiro.test(Ca_ratio$Zn) #not normally distributed
+
+dunn.test(Ca_ratio$Zn, Ca_ratio$Site, method = "bonferroni")
+
+kruskal.test(Zn ~ Group, data = Ca_ratio)
+
 #Zn is significantly greater at SARI  
 ```
+SARI 2 sig diff than BUIS 6; SARI 3 sig diff than BUIS 2 and BUIS 6 
 
 Phosphorus - Indicates nutrient loading 
 ```{r}
 P_coral <- lm(P ~ Site, data = Ca_ratio)
 summary(P_coral)
 
+plot(P_coral)
+
+shapiro.test(Ca_ratio$P) #close to being normal, may be able to log transform? but can't seem to log transform  in shapiro test function 
+
+dunn.test(Ca_ratio$P, Ca_ratio$Site, method = "bonferroni")
+
 P_coral2 <- lm(P ~ Group, data = Ca_ratio)
 summary(P_coral2)
+
+plot(P_coral2)
 #P significantly greater at BUIS
 ```
 
@@ -346,25 +467,48 @@ Boron - pH proxy
 B_coral <- lm(B ~ Site, data = Ca_ratio)
 summary(B_coral)
 
+plot(B_coral)
+
+shapiro.test(Ca_ratio$B) #Data normally distributed
+
 B_coral2 <- lm(B ~ Group, data = Ca_ratio)
 summary(B_coral2)
+
+plot(B_coral2)
 #B significantly greater at BUIS 
 ```
 
 BARIUM - Salinity/Freshwater proxy 
 ```{r}
-Ba_coral <- lm(Ba ~ Site, data = Ca_ratio)
+Ba_coral <- lm(log(Ba) ~ Site, data = Ca_ratio)
 summary(Ba_coral)
+
+plot(Ba_coral)
+
+shapiro.test(Ca_ratio$Ba) #Data not normally distributed
+
+dunn.test(Ca_ratio$Ba, Ca_ratio$Site, method = "bonferroni")
+
+kruskal.test(Ba ~ Group, data = Ca_ratio)
 
 Ba_coral2 <- lm(Ba ~ Group, data = Ca_ratio)
 summary(Ba_coral2)
 #Ba significantly greater at BUIS
 ```
+SARI 1 sig diff from BUIS 1 and BUIS 2; SARI 2 sig diff from BUIS 2
 
 LEAD - Toxic metal 
 ```{r}
 Pb_coral <- lm(Pb ~ Site, data = Ca_ratio)
 summary(Pb_coral)
+
+shapiro.test(Ca_ratio$Pb) #Data normally distributed
+
+pairwise.t.test(Ca_ratio$Pb, Ca_ratio$Site) #sig differences btwn sites; double check all assumptions
+
+dunn.test(Ca_ratio$Pb, Ca_ratio$Site, method = "bonferroni") 
+
+kruskal.test(Pb ~ Group, data = Ca_ratio)
 
 Pb_coral2 <- lm(Pb ~ Group, data = Ca_ratio)
 summary(Pb_coral2)
@@ -376,12 +520,27 @@ ALUMINUM AND IRON - Both element indicate turbidity if taken up in coral skeleto
 Al_coral <- lm(Al ~ Site, data = Ca_ratio)
 summary(Al_coral)
 
+shapiro.test(Ca_ratio$Al) #Data normally distributed
+
+dunn.test(Ca_ratio$Al, Ca_ratio$Site, method = "bonferroni") #no sig diff btwn sites 
+
+kruskal.test(Al ~ Group, data = Ca_ratio)
+```
+No sig differences for Al
+
+```{r}
 Fe_coral <- lm(Fe ~ Site, data = Ca_ratio)
 summary(Fe_coral)
 
-#Fe very close to being significantly different between BUIS and SARI -> need to look at individual site differences more closely
+shapiro.test(Ca_ratio$Fe) #Data not normally distributed
 
-#Al not significantly different between SARI and BUIS but some significant differences at certain sites
+dunn.test(Ca_ratio$Fe, Ca_ratio$Site, method = "bonferroni") #no sig diff btwn sites 
+
+kruskal.test(Fe ~ Group, data = Ca_ratio) #significantly different when running kruskal test
+
+Fe_coral2 <- lm(Fe ~ Group, data = Ca_ratio) #not significantly diff when running parametric 
+
+summary(Fe_coral2)
 ```
 
 Examining percent mortality (explanatory variable) as a function of site
@@ -393,9 +552,24 @@ plot(Perc.Mortality ~ Site, data = coral_explanatory)
 Mort_aov <- lm(Perc.Mortality ~ Site, data = coral_explanatory)
 summary(Mort_aov)
 #Mortality is significantly different between certain sites 
-```
 
-BUIS 4, SARI 1 and SARI 2 all have significantly greater mortality than BUIS 1
+plot(Mort_aov)
+
+shapiro.test(coral_explanatory$Perc.Mortality) #Data not normally distributed
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Perc.Mortality ~ Site, ylab = "Percent Mortality", data = coral_explanatory)
+dunn.test(coral_explanatory$Perc.Mortality, coral_explanatory$Site, method = "bonferroni") 
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Perc.Mortality ~ Group, ylab = "Percent Mortality", xlab = "Population", data = coral_explanatory)
+kruskal.test(Perc.Mortality ~ Group, data = coral_explanatory)
+
+```
+SARI 2 and BUIS 4 are sig diff than BUIS 1
+BUIS 4 and SARI 2 all have significantly greater mortality than BUIS 1
 
 ```{r}
 plot(Colony.length ~ Site, data = coral_explanatory)
@@ -403,7 +577,32 @@ plot(Colony.length ~ Site, data = coral_explanatory)
 
 Length_aov <- lm(Colony.length ~ Site, data = coral_explanatory)
 summary(Length_aov)
+
+plot(Length_aov)
+
+shapiro.test(coral_explanatory$Colony.length) #Data not normally distributed
+
+dunn.test(coral_explanatory$Colony.length, coral_explanatory$Site, method = "bonferroni")
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Colony.length ~ Group, xlab = "Population", ylab = "Colony Length (cm)", data = coral_explanatory)
+
+par(cex.lab = 1.5)
+par(cex.axis = 1.5)
+plot(Colony.length ~ Site, ylab = "Colony Length (cm)", data = coral_explanatory)
+
+kruskal.test(Colony.length ~ Group, data = coral_explanatory)
 ```
 
-SARI 1 is significantly smaller in length than BUIS 1
+SARI 1 is significantly diff than BUIS 1 and BUIS 2
+SARI 1 is significantly smaller in length than BUIS 1 (and BUIS 2?)
+
+Sediment Notes:
+
+U significantly different at individual sites but not between BUIS and SARI 
+Mg, Nd, Ag not significantly different
+Rb diff at SARI 1 but not between BUIS and SARI 
+Sr diff at a couple sites, not  btwn BUIS and SARI 
+Li diff at a few sites, not btwn BUIS and SARI 
 
